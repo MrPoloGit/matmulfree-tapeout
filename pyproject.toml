@@ -1,0 +1,37 @@
+[project]
+name = "matmulfree-tapeout"
+version = "0.1.0"
+description = "Getting ridger/MMfreeLM (MatMul-free LM, HGRN-bit architecture) through ankhdjet's weights-to-masks compiler and, eventually, SKY130 tapeout"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ankhdjet",
+    "numpy>=1.26",
+    "torch>=2.6",
+    "safetensors>=0.4",
+    "huggingface-hub>=0.24",
+    "cocotb>=2.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.uv.sources]
+# Path dependency on the sibling ankhdjet checkout, not a published
+# release: this project tracks ankhdjet's HGRN-bit/MatMul-free support
+# as it lands there, and also needs repo-level assets (rtl/, tools/)
+# a bare pip install of ankhdjet does not package. Points at the
+# matmulfree-support worktree specifically (../ankhdjet-matmulfree),
+# not the main ../ankhdjet checkout, since that is where the generic
+# HGRN-bit architecture support actually lives. Override with
+# ANKHDJET_REPO at test time if your checkout lives somewhere else;
+# this only affects `uv sync`'s install source.
+ankhdjet = { path = "../ankhdjet-matmulfree", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "package: pure-Python tier runnable with core dependencies only",
+]
