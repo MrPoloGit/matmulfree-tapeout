@@ -1,0 +1,6 @@
+# Inherit bazel-orfs's Bazel settings (C++20, strict action env, disk-cache GC,
+# lockfile mode, etc.).  try-import so missing submodule doesn't break analysis.
+try-import %workspace%/bazel-orfs/.bazelrc
+
+# Local disk cache
+build --disk_cache=~/.cache/bazel-disk-cache

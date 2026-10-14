@@ -5,3 +5,10 @@ __pycache__/
 build/
 *.egg-info/
 .DS_Store
+
+# Bazel convenience symlinks and local state (bazel-orfs is a real
+# submodule, not one of these, so it's excluded from the glob)
+bazel-*
+!bazel-orfs
+MODULE.bazel.lock
+.bazelrc.user

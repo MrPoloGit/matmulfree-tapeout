@@ -1,0 +1,29 @@
+load("@bazel-orfs//:openroad.bzl", "orfs_flow")
+
+# cirom_dig_ctrl: the real, unmodified ternary tile controller (from the
+# ankhdjet checkout's matmulfree-support branch) that HGRN-bit's
+# BitLinear matmuls already compile to bit-exact
+# (matmulfree-tapeout/tests/test_mmfreelm_block0_rtl.py) -- the same
+# RTL this project's own prior SKY130 silicon
+# (ankhdjet's cirom_chip_digital, TinyTapeout's tt_um_darga_cirom) uses
+# at these exact default dimensions (N_ROWS=64, N_COLS=32). This is the
+# first attempt at pushing it through real synthesis + place + route
+# on GT2N (2nm GAAFET, Georgia Tech) rather than SKY130 (130nm).
+#
+# GT2N ships no KLayout DRC/LVS decks, so this flow stops at GDS
+# (synth -> floorplan -> place -> cts -> route -> final/GDS), not a
+# signed-off result -- see matmulfree-tapeout's README.
+orfs_flow(
+    name = "cirom_dig_ctrl",
+    top = "cirom_dig_ctrl",
+    verilog_files = ["src/cirom_dig_ctrl.sv"],
+    pdk = "@orfs//flow:gt2n",
+    sources = {
+        "SDC_FILE": ["constraint.sdc"],
+    },
+    arguments = {
+        "CORE_UTILIZATION": "50",
+        "PLACE_DENSITY": "0.50",
+        "MAX_ROUTING_LAYER": "M6",
+    },
+)

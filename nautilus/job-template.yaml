@@ -1,0 +1,147 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __NAMESPACE__
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: matmulfree-tapeout
+        user: __USER_LABEL__
+        design: __DESIGN_LABEL__
+        stage: __STAGE__
+    spec:
+      initContainers:
+      - name: clone-repo
+        image: alpine/git
+        command: ["sh", "-c"]
+        args:
+        - |
+          set -e
+          git clone --single-branch --branch __BRANCH__ --depth=1 \
+            __REPO_URL__ /repo
+          cd /repo
+          git submodule update --init --depth=1 bazel-orfs
+        resources:
+          requests:
+            cpu: "1"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+        volumeMounts:
+        - name: repo
+          mountPath: /repo
+
+      containers:
+      - name: build
+        # ubuntu:24.04 -- Bazelisk + hermetic LLVM toolchain builds OpenROAD
+        # from source; no pre-built openroad/orfs image dependency.
+        image: ubuntu:24.04
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euo pipefail
+
+          apt-get update -qq && apt-get install -y -qq \
+            curl git build-essential time libxml2 \
+            python3 python3-yaml python3-numpy \
+            >/dev/null 2>&1
+
+          curl -fsSL -o /usr/local/bin/bazel \
+            https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x /usr/local/bin/bazel
+
+          cd /repo
+
+          echo "=== matmulfree-tapeout k8s job ==="
+          echo "  target : __BAZEL_TARGET__"
+          echo "  branch : __BRANCH__"
+          echo "  node   : $(hostname)"
+          echo "  cores  : $(nproc)"
+          echo "  memory : $(free -h | awk '/Mem/{print $2}')"
+          echo "==================================="
+
+          echo "=== disk before build ==="
+          df -h /
+          echo "=========================="
+
+          BUILD_RC=0
+          bazel build \
+            --disk_cache=~/.cache/bazel-disk-cache \
+            --verbose_failures \
+            __BAZEL_TARGET__ \
+            || BUILD_RC=$?
+
+          echo "=== disk after build (rc=$BUILD_RC) ==="
+          df -h /
+          echo "========================================"
+
+          # On failure, save any ORFS log files Bazel already wrote to disk.
+          if [ $BUILD_RC -ne 0 ]; then
+            echo "Build failed -- searching for partial ORFS logs..."
+            LOG_DEST="/artifacts/designs/__DESIGN_LABEL__/logs_partial"
+            mkdir -p "$LOG_DEST"
+            find /root/.cache/bazel \
+              -name "*.log" \
+              2>/dev/null \
+              | while read f; do
+                  cp "$f" "$LOG_DEST/" 2>/dev/null && echo "Saved: $f"
+                done || true
+            find bazel-out \
+              -name "*.log" \
+              2>/dev/null \
+              | while read f; do
+                  cp "$f" "$LOG_DEST/" 2>/dev/null && echo "Saved: $f"
+                done || true
+          fi
+
+          if [ "__SAVE_ARTIFACTS__" = "true" ]; then
+            TARGET="__BAZEL_TARGET__"
+            DESIGN_PATH="${TARGET#//}"
+            DESIGN_PATH="${DESIGN_PATH%%:*}"
+            ARTIFACT_DIR="bazel-bin/${DESIGN_PATH}"
+            if [ -d "$ARTIFACT_DIR" ]; then
+              DEST="/artifacts/${DESIGN_PATH}"
+              echo "Copying build artifacts to $DEST..."
+              rm -rf "$DEST"
+              mkdir -p "$DEST"
+              cp -rL "$ARTIFACT_DIR"/* "$DEST/" 2>/dev/null || true
+              find "$DEST" -name '*.runfiles' -type d -exec rm -rf {} + 2>/dev/null || true
+              find "$DEST" -name '*.runfiles_manifest' -delete 2>/dev/null || true
+              echo "Artifacts saved to $DEST/"
+              du -sh "$DEST"
+            else
+              echo "WARNING: artifact directory $ARTIFACT_DIR not found"
+            fi
+          fi
+
+          exit $BUILD_RC
+
+        volumeMounts:
+        - name: repo
+          mountPath: /repo
+        - name: artifacts
+          mountPath: /artifacts
+
+        resources:
+          requests:
+            memory: __MEM_REQUEST__
+            cpu: __CPU_REQUEST__
+            ephemeral-storage: __EPH_REQUEST__
+          limits:
+            memory: __MEM_LIMIT__
+            cpu: __CPU_LIMIT__
+            ephemeral-storage: __EPH_LIMIT__
+
+      volumes:
+      - name: repo
+        emptyDir: {}
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: matmulfree-tapeout-artifacts
+
+      restartPolicy: Never

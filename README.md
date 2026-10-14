@@ -136,25 +136,70 @@ in early 2026.
 | Taalas HC1 | 6 nm | 815 mm² | 8,000M | 0.10 mm² |
 | This estimate (370M, digital) | 130 nm (SKY130) | 3,183 mm² | 370M | 8.60 mm² |
 
-Raw, that's **~84x worse area efficiency per parameter**. Almost all
-of that gap is the process node, not the architecture: 130 nm vs 6 nm
-is a ~21.7x linear, ~469x area difference for equivalent structures
-under naive node² scaling. Applying that factor the other way —
-shrinking this estimate's 370M number to a hypothetical 6 nm process —
-gives **~6.8 mm²**, actually *better* than Taalas's real 37.7 mm²
-(their own density applied to 370M params). Take that with real
-caveats, not as a claim this architecture beats Taalas's: node²
-scaling is a crude rule of thumb that undercounts real advanced-node
-costs (parasitics, reliability margins, SRAM/analog structures scale
-worse than logic), Taalas ships a real, validated product at full
-engineering maturity while this is a calibrated-but-unbuilt estimate,
-and Taalas's 3/6-bit mixed precision needs more bits per weight than
-this project's ternary cells, which should cost *them* more area per
-parameter, not less — so the comparison is genuinely informative
-about where the gap actually lives (mostly node, not concept), but not
-a result to oversell.
+Raw, that's **~84x worse area efficiency per parameter** — but almost
+all of that gap is the process node, not the architecture, and it's
+now possible to check that with a real node instead of a guess (see
+below).
+
+#### Redone with a real 2nm PDK instead of node² guessing
+
+The first pass at this (since retracted above) scaled SKY130's number
+by naive node² on the marketing node name (130nm vs 6nm). That's a bad
+method and this project shouldn't rely on it: real area doesn't track
+the marketing node number. Redone properly using
+[GT2N](https://github.com/azadnaeemi/GT2N) — a real, open-source 2nm
+GAAFET (3-stack nanosheet) logic PDK with actual LEF standard cells
+(Jang et al., IEEE ISCAS 2026) — by measuring the real cell-area ratio
+between its `nand2_x1` LEF macro and SKY130's own `nand2_1`:
+
+```
+SKY130 sky130_fd_sc_hd__nand2_1:  1.380 x 2.720 um = 3.7536 um^2
+GT2N   gt2_6t_nand2_x1 (w13/svt): 0.126 x 0.144 um = 0.018144 um^2
+real measured ratio = 206.88x
+```
+
+(Naive node² on the node names, 130nm vs 2nm, would have predicted
+4,225x — 20x off the real measured ratio.) Scaling every area term in
+`sky130_v4.yaml` by this real ratio gives a new PDK descriptor,
+`ankhdjet`'s `pdk/gt2n/estimators/gt2n.yaml` (full derivation and
+caveats in that file's header — GT2N ships no memory macro, so the
+bitcell/SRAM terms are a labeled proxy using the same ratio, not a
+direct measurement; only the logic/periphery terms rest on real LEF
+geometry both sides). Running the same calibrated estimator against
+the same full 370M model with that PDK:
+
+| | cells | periphery | die overhead | **total** |
+|---|---|---|---|---|
+| mm² | 3.99 | 9.39 | 2.01 | **15.39** |
+
+Scaling that to Taalas's 8B-param count (same architecture, linear in
+param count — not a different, bigger model actually run through the
+pipeline) gives **~332.7 mm²**, against Taalas's real, shipped
+**815 mm²** for the same 8B params. That makes this architecture look
+*more* area-efficient per parameter than Taalas's real chip once node
+is actually accounted for with real geometry, not a guess — but take
+that as "the gap lives mostly in the node, not the concept," not as a
+claim of beating Taalas:
+
+- GT2N is a research PDK (ISCAS 2026), not a foundry-qualified
+  production node like TSMC's 6nm — real manufacturability margins
+  (parasitics, yield, reliability derating) that a true foundry node
+  enforces could cost real area GT2N's LEF geometry alone doesn't
+  capture.
+- Taalas ships a real, validated, measured product at full
+  engineering maturity; this is a calibrated-but-unbuilt estimate on
+  an unmodified architecture — periphery that real hardening would
+  likely let an actual design team squeeze further.
+- Taalas's 3/6-bit mixed precision needs more bits per weight than
+  this project's ternary cells, which should cost *them* more area
+  per parameter on that axis alone — some of the apparent advantage
+  here is genuinely a precision difference, not just node or layout.
+- GT2N is 2nm vs Taalas's 6nm — a real, more-advanced-node comparison
+  this time (not matched nodes), so part of the gap is legitimately
+  "a more advanced node would help," which is true of any chip.
 
 Sources:
+- [GT2N PDK](https://github.com/azadnaeemi/GT2N) (Jang et al., IEEE ISCAS 2026)
 - [Taalas HC1 Review: Hardwired LLM ASIC](https://wavect.io/blog/taalas-hc1-llm-asic-review/)
 - [AMD Acquires Taalas, Startup Etching AI Weights Into Silicon](https://aiweekly.co/alerts/amd-acquires-taalas-startup-etching-ai-weights-into-silicon)
 

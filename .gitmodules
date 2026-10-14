@@ -1,0 +1,3 @@
+[submodule "bazel-orfs"]
+	path = bazel-orfs
+	url = https://github.com/MrPoloGit/bazel-orfs.git
