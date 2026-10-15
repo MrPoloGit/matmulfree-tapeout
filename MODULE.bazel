@@ -324,6 +324,22 @@ pycross.configure_environments(python_versions = ["3.13"])
 # MVS resolves there regardless given the rest of the graph).
 bazel_dep(name = "rules_python", version = "2.3.2")
 
+# Python toolchain registration, repeated verbatim from bazel-orfs/MODULE.bazel
+# (SOFA-orfs and HighTide's own root MODULE.bazel files do the same for their
+# bazel-orfs pin): bazel-orfs-pip's generated wheel selects need the resolved
+# default Python toolchain to actually be 3.13, and that only took effect once
+# declared here -- without it, bazel-orfs-pip//pyyaml (pulled in by sv-lang)
+# failed analysis with "No matching wheel for current configuration's Python
+# version and platform."
+python = use_extension(
+    "@rules_python//python/extensions:python.bzl",
+    "python",
+)
+python.toolchain(
+    is_default = True,
+    python_version = "3.13",
+)
+
 orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")
 orfs.source(
     commit = "6b305a712966be72d8908695c04398acdbe273ca",
