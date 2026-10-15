@@ -71,7 +71,8 @@ spec:
 
           BUILD_RC=0
           bazel build \
-            --disk_cache=~/.cache/bazel-disk-cache \
+            --disk_cache=/root/.cache/bazel-persist/disk_cache \
+            --repository_cache=/root/.cache/bazel-persist/repo_cache \
             --verbose_failures \
             __BAZEL_TARGET__ \
             || BUILD_RC=$?
@@ -126,6 +127,8 @@ spec:
           mountPath: /repo
         - name: artifacts
           mountPath: /artifacts
+        - name: bazel-cache
+          mountPath: /root/.cache/bazel-persist
 
         resources:
           requests:
@@ -143,5 +146,8 @@ spec:
       - name: artifacts
         persistentVolumeClaim:
           claimName: matmulfree-tapeout-artifacts
+      - name: bazel-cache
+        persistentVolumeClaim:
+          claimName: matmulfree-tapeout-bazel-cache
 
       restartPolicy: Never
