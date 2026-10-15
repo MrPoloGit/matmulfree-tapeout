@@ -345,5 +345,20 @@ orfs.source(
     commit = "6b305a712966be72d8908695c04398acdbe273ca",
     integrity = "sha256-mcUpbDm0r8+u3zwyPdBPxEbfRiFulCn0kMDSVPqkL5o=",
 )
-orfs.default()
+# @sv-elab needs to be visible from this (root) module too: a label
+# referenced directly in MODULE.bazel (yosys_plugins below) needs the repo
+# resolvable from the main repo's own mapping, same root-visibility rule as
+# @rules_python above. Version matches bazel-orfs's own (non-root, non-dev,
+# so MVS already resolves there) bazel_dep pin.
+bazel_dep(name = "sv-elab", version = "2026-07-07")
+
+# yosys_plugins is root-honored only (like bazel-orfs's own orfs.default()
+# call declaring it, per bazel-orfs/docs/openroad.md and bump_impl_test.py):
+# without it, yosys falls back to its own share/plugins dir, which doesn't
+# have slang.so, and any .sv source's synth stage fails with "Can't load
+# module `./slang'". sv-elab itself comes from bazel-orfs's own (non-root,
+# non-dev, so transitive) bazel_dep.
+orfs.default(
+    yosys_plugins = ["@sv-elab//src/yosys_plugin:slang.so"],
+)
 use_repo(orfs, "orfs")
