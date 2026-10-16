@@ -1,4 +1,4 @@
-load("@bazel-orfs//:openroad.bzl", "orfs_flow")
+load("@bazel-orfs//:openroad.bzl", "orfs_flow", "orfs_gds")
 
 # cirom_dig_ctrl: the real, unmodified ternary tile controller (from the
 # ankhdjet checkout's matmulfree-support branch) that HGRN-bit's
@@ -26,4 +26,15 @@ orfs_flow(
         "PLACE_DENSITY": "0.50",
         "MAX_ROUTING_LAYER": "M6",
     },
+)
+
+# orfs_gds is a standalone rule (not auto-wired by orfs_flow): it runs
+# KLayout's do-gds over an already-built orfs_final target's outputs.
+# klayout = "@bazel-orfs//:klayout" wraps whatever `klayout` binary is on
+# PATH in the build container (not bazel-orfs's default mock, which only
+# writes dummy placeholder GDS) -- see bazel-orfs/docs/klayout.md.
+orfs_gds(
+    name = "cirom_dig_ctrl_gds",
+    src = ":cirom_dig_ctrl_final",
+    klayout = "@bazel-orfs//:klayout",
 )
