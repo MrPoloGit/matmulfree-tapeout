@@ -340,6 +340,18 @@ python.toolchain(
     python_version = "3.13",
 )
 
+# Pip deps for tools/gen_grid_rtl's py_binary (the GT2N physical-design
+# genrule that extracts a real HGRN-bit projection's checkpoint weight
+# and emits its grid_rtl, run inside the Nautilus build sandbox -- not
+# bazel-orfs-pip, which is reserved for its own internal flow tooling).
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "mmfree_pip",
+    python_version = "3.13",
+    requirements_lock = "//tools/gen_grid_rtl:requirements.txt",
+)
+use_repo(pip, "mmfree_pip")
+
 orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")
 orfs.source(
     commit = "6b305a712966be72d8908695c04398acdbe273ca",

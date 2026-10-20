@@ -1,0 +1,27 @@
+load("@bazel-orfs//:openroad.bzl", "orfs_flow")
+
+# b0_f_grid: cirom_grid_ctrl parameterized at HGRN-bit's real block-0
+# f_proj geometry (1024x1024, GRID_R=16 x GRID_C=32 chunks of 64x32 at
+# the GT2N-proven tile size) -- the physical-design scale-up of the
+# single-tile cirom_dig_ctrl already synthesized/placed/routed/GDS'd
+# on GT2N. Same scope as that design: blp/bln (here 16,384 bits wide)
+# are top-level ports, not an internal memory array -- the
+# mask-programmed array itself is a separate hardened block, stitched
+# in later. See src/b0_f_grid_top.sv.
+orfs_flow(
+    name = "b0_f_grid",
+    top = "b0_f_grid_top",
+    verilog_files = [
+        "src/b0_f_grid_top.sv",
+        "src/cirom_grid_ctrl.sv",
+    ],
+    pdk = "@orfs//flow:gt2n",
+    sources = {
+        "SDC_FILE": ["constraint.sdc"],
+    },
+    arguments = {
+        "CORE_UTILIZATION": "50",
+        "PLACE_DENSITY": "0.50",
+        "MAX_ROUTING_LAYER": "M6",
+    },
+)

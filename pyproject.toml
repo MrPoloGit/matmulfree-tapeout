@@ -32,6 +32,8 @@ ankhdjet = { path = "../ankhdjet-matmulfree", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not slow'"
 markers = [
     "package: pure-Python tier runnable with core dependencies only",
+    "slow: real builds that take 20+ minutes (e.g. ~16,000-chunk Verilator compiles for embed/lm_head) -- not run by a plain `pytest`, select explicitly with `-m slow`",
 ]

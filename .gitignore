@@ -12,3 +12,11 @@ bazel-*
 !bazel-orfs
 MODULE.bazel.lock
 .bazelrc.user
+
+# Pulled-down cluster build artifacts (GDS/DEF/ODB/etc) -- large
+# binaries, regenerable from a Nautilus job, not meant for git.
+gds_output/
+
+# cocotb per-test result files written next to the driver when a test
+# runs with test_dir pointed at the source tree instead of tmp_path.
+*.result.xml
